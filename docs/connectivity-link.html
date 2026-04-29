@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Connectivity Link &mdash; RHEL VM bootc Golden Path</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+</head>
+<body>
+  <header class="site-header">
+    <button class="hamburger" aria-label="Menu">&#9776;</button>
+    <a href="index.html" class="logo">
+      <span class="hat">&#9654;</span>
+      RHEL VM bootc &mdash; Golden Path
+    </a>
+    <div class="header-links">
+      <a href="https://github.com/maximilianoPizarro/golden-path-rhel-bootc" target="_blank">GitHub</a>
+    </div>
+  </header>
+  <div class="sidebar-overlay"></div>
+  <div class="layout">
+    <aside class="sidebar">
+      <nav>
+        <span class="nav-section">General</span>
+        <a href="index.html">Overview</a>
+        <a href="architecture.html">Architecture</a>
+        <a href="requirements.html">Requirements</a>
+        <span class="nav-section">User Guide</span>
+        <a href="usage.html">How to Use</a>
+        <a href="parameters.html">Parameters</a>
+        <span class="nav-section">Deep Dives</span>
+        <a href="bootc.html">bootc / Image-Mode RHEL</a>
+        <a href="connectivity-link.html">Connectivity Link</a>
+        <a href="manifests.html">Manifest Reference</a>
+      </nav>
+    </aside>
+
+    <main class="main">
+      <h1>Connectivity Link</h1>
+      <p class="subtitle">
+        Expose VM services through Gateway API with Kuadrant-powered
+        authentication and rate limiting.
+      </p>
+
+      <h2>What is Connectivity Link?</h2>
+      <p>
+        <strong>Red Hat Connectivity Link</strong> is the productized distribution of the
+        <a href="https://kuadrant.io" target="_blank">Kuadrant</a> project. It extends the
+        Kubernetes <strong>Gateway API</strong> with policy-based authentication, authorization,
+        and rate limiting. When enabled in this golden path, it creates a complete ingress
+        pipeline from the internet to the VM service.
+      </p>
+
+      <h2>Components Created</h2>
+      <p>
+        When <code>enableConnectivityLink</code> is set to <code>true</code>, the template
+        generates the following additional resources:
+      </p>
+
+      <div class="card-grid">
+        <div class="card">
+          <h3>Gateway</h3>
+          <p>
+            A <code>gateway.networking.k8s.io/v1 Gateway</code> using the
+            <code>istio</code> GatewayClass. Listens on HTTP port 8080 with
+            <code>ClusterIP</code> service type. Istio provisions an envoy proxy pod.
+          </p>
+        </div>
+        <div class="card">
+          <h3>HTTPRoute</h3>
+          <p>
+            Routes requests matching the configured path prefix to the VM
+            <code>Service</code> on port 8080. Attached to the Gateway as a
+            <code>parentRef</code>.
+          </p>
+        </div>
+        <div class="card">
+          <h3>OpenShift Route</h3>
+          <p>
+            Exposes the Istio gateway service externally with TLS edge termination.
+            Provides the <code>*.apps.&lt;domain&gt;</code> hostname.
+          </p>
+        </div>
+        <div class="card">
+          <h3>AuthPolicy</h3>
+          <p>
+            Kuadrant AuthPolicy targeting the HTTPRoute. Configures authentication
+            via API Key header/cookie or OIDC JWT validation.
+          </p>
+        </div>
+        <div class="card">
+          <h3>RateLimitPolicy</h3>
+          <p>
+            Global rate limiting on the HTTPRoute (when auth model is not API Key).
+            Enforces a per-minute request limit via Limitador.
+          </p>
+        </div>
+        <div class="card">
+          <h3>PlanPolicy + APIProduct</h3>
+          <p>
+            (API Key mode only) Tiered rate limiting with free/basic/pro plans
+            and Dev Portal integration for API Key self-service.
+          </p>
+        </div>
+      </div>
+
+      <h2>Authentication Models</h2>
+
+      <h3>None (Open Access)</h3>
+      <p>
+        No authentication is enforced. All requests pass through to the VM service.
+        A <code>RateLimitPolicy</code> is still applied if the rate limit is greater
+        than zero.
+      </p>
+
+      <h3>API Key</h3>
+      <p>
+        Clients authenticate by providing an API key via the <code>X-API-Key</code>
+        HTTP header or a <code>vm-api-key</code> cookie. The AuthPolicy uses
+        Authorino's <code>apiKey</code> identity source, which validates keys stored
+        as Kubernetes Secrets with the label
+        <code>authorino.kuadrant.io/managed-by: authorino</code>.
+      </p>
+
+      <div class="callout">
+        A demo API key Secret is automatically created:
+        <code>&lt;vmName&gt;-demo-key</code> with the <code>basic</code> plan tier.
+      </div>
+
+      <h3>Rate Limit Plans (API Key mode)</h3>
+      <p>
+        When the API Key authentication model is selected, rate limiting is handled
+        by a <code>PlanPolicy</code> instead of a plain <code>RateLimitPolicy</code>.
+        The PlanPolicy defines three tiers:
+      </p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Plan</th>
+              <th>Daily Limit</th>
+              <th>Per-Minute Limit</th>
+              <th>How to Select</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>free</strong></td>
+              <td>100 requests</td>
+              <td>10 requests</td>
+              <td>Set annotation <code>secret.kuadrant.io/plan-id: free</code> on the API key Secret</td>
+            </tr>
+            <tr>
+              <td><strong>basic</strong></td>
+              <td>1,000 requests</td>
+              <td>60 requests</td>
+              <td>Set annotation <code>secret.kuadrant.io/plan-id: basic</code> on the API key Secret</td>
+            </tr>
+            <tr>
+              <td><strong>pro</strong></td>
+              <td>10,000 requests</td>
+              <td>300 requests</td>
+              <td>Set annotation <code>secret.kuadrant.io/plan-id: pro</code> on the API key Secret</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Unauthenticated Response (API Key)</h3>
+      <p>
+        When no valid API key is provided, the AuthPolicy returns a custom HTML login
+        page (HTTP 401) that allows users to enter their API key in a browser form.
+        The form validates the key against the service and sets a cookie for subsequent
+        requests.
+      </p>
+
+      <h3>OIDC (Keycloak)</h3>
+      <p>
+        Clients authenticate using a JWT Bearer token issued by
+        <strong>Red Hat Build of Keycloak</strong>. The AuthPolicy validates tokens
+        against the Keycloak issuer URL:
+      </p>
+      <pre><code class="language-yaml">jwt:
+  issuerUrl: https://rhbk.&lt;clusterDomain&gt;/realms/&lt;realm&gt;
+credentials:
+  authorizationHeader:
+    prefix: Bearer</code></pre>
+
+      <p>Usage with curl:</p>
+      <pre><code class="language-bash"># Get a token from Keycloak
+TOKEN=$(curl -s -X POST \
+  "https://rhbk.apps.cluster.example.com/realms/neuralbank/protocol/openid-connect/token" \
+  -d "grant_type=client_credentials" \
+  -d "client_id=vm-client" \
+  -d "client_secret=YOUR_SECRET" | jq -r .access_token)
+
+# Access the VM service
+curl -H "Authorization: Bearer $TOKEN" \
+  https://my-webserver-route-user1-vms.apps.cluster.example.com/</code></pre>
+
+      <h2>Dev Portal &amp; API Product</h2>
+      <p>
+        When the API Key model is selected, the template also creates an
+        <code>APIProduct</code> resource (Kuadrant Dev Portal CRD). This enables:
+      </p>
+      <ul>
+        <li>API discovery in the Kuadrant Dev Portal</li>
+        <li>Self-service API Key generation for consumers</li>
+        <li>Plan selection (free / basic / pro)</li>
+        <li>API documentation linked from the Gitea repository</li>
+      </ul>
+      <p>
+        The API is also registered in the <strong>Backstage catalog</strong> as an
+        <code>API</code> entity with an OpenAPI 3.0 spec, linked to the VM Component
+        via <code>providesApis</code>.
+      </p>
+
+      <h2>Traffic Flow Diagram</h2>
+      <div class="diagram">
+<pre><code>  Client Request
+       │
+       │  HTTPS
+       ▼
+  ┌────────────────┐
+  │ OpenShift Route │  TLS edge termination
+  │ (HAProxy)       │
+  └───────┬────────┘
+          │  HTTP :8080
+          ▼
+  ┌────────────────┐
+  │ Istio Gateway   │  GatewayClass: istio
+  │ (Envoy Proxy)   │
+  └───────┬────────┘
+          │
+    ┌─────┴──────┐
+    ▼            ▼
+┌────────┐  ┌─────────┐
+│Authorino│  │Limitador│  Envoy ext-auth & rate-limit filters
+│(AuthPol)│  │(RLPol)  │
+└────────┘  └─────────┘
+    │            │
+    └─────┬──────┘
+          │  Authorized + Within limits
+          ▼
+  ┌────────────────┐
+  │ HTTPRoute       │  Path prefix match
+  └───────┬────────┘
+          │
+          ▼
+  ┌────────────────┐
+  │ K8s Service     │  ClusterIP :8080
+  └───────┬────────┘
+          │
+          ▼
+  ┌────────────────┐
+  │ VM (httpd)      │  RHEL guest on :8080
+  └────────────────┘</code></pre>
+      </div>
+    </main>
+  </div>
+  <footer class="site-footer">
+    Golden Path RHEL VM bootc &mdash; Built with Red Hat Developer Hub &amp; OpenShift Virtualization
+    &bull; <a href="https://github.com/maximilianoPizarro/golden-path-rhel-bootc" target="_blank">Source on GitHub</a>
+  </footer>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/yaml.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/bash.min.js"></script>
+  <script src="js/main.js"></script>
+  <script>hljs.highlightAll();</script>
+</body>
+</html>

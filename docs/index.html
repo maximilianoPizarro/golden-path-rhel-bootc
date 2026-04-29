@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RHEL VM bootc Golden Path</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="site-header">
+    <button class="hamburger" aria-label="Menu">&#9776;</button>
+    <a href="index.html" class="logo">
+      <span class="hat">&#9654;</span>
+      RHEL VM bootc &mdash; Golden Path
+    </a>
+    <div class="header-links">
+      <a href="https://github.com/maximilianoPizarro/golden-path-rhel-bootc" target="_blank">GitHub</a>
+    </div>
+  </header>
+
+  <div class="sidebar-overlay"></div>
+
+  <div class="layout">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <nav>
+        <span class="nav-section">General</span>
+        <a href="index.html">Overview</a>
+        <a href="architecture.html">Architecture</a>
+        <a href="requirements.html">Requirements</a>
+        <span class="nav-section">User Guide</span>
+        <a href="usage.html">How to Use</a>
+        <a href="parameters.html">Parameters</a>
+        <span class="nav-section">Deep Dives</span>
+        <a href="bootc.html">bootc / Image-Mode RHEL</a>
+        <a href="connectivity-link.html">Connectivity Link</a>
+        <a href="manifests.html">Manifest Reference</a>
+      </nav>
+    </aside>
+
+    <!-- Content -->
+    <main class="main">
+      <div class="hero">
+        <h1>RHEL Virtual Machine<br>Golden Path</h1>
+        <p class="subtitle">
+          Self-service provisioning of RHEL virtual machines on OpenShift Virtualization
+          with GitOps-driven lifecycle management via bootc (image-mode RHEL).
+        </p>
+        <a href="usage.html" class="btn btn-primary">Get Started</a>
+        <a href="architecture.html" class="btn btn-secondary">Architecture</a>
+      </div>
+
+      <h2>What is this Golden Path?</h2>
+      <p>
+        This is a <strong>Backstage Software Template</strong> designed for
+        <strong>Red Hat Developer Hub</strong> that enables platform teams and developers
+        to provision RHEL virtual machines on <strong>OpenShift Virtualization</strong>
+        through a self-service wizard. Every VM is managed declaratively via
+        <strong>GitOps</strong> (ArgoCD), and the operating system can be delivered as an
+        immutable OCI image using <strong>bootc</strong> (image-mode RHEL).
+      </p>
+
+      <p>
+        Optionally, the VM can be exposed to external traffic through
+        <strong>Red Hat Connectivity Link</strong> (Kuadrant), which provides Gateway API
+        routing, authentication policies (OIDC or API Key), and rate limiting &mdash; all
+        configured from the same wizard.
+      </p>
+
+      <h2>Key Capabilities</h2>
+      <div class="card-grid">
+        <div class="card">
+          <span class="icon">&#127960;</span>
+          <h3>VM Provisioning</h3>
+          <p>
+            Configure CPU, memory, storage, boot source, and run strategy through a
+            guided wizard. The template generates all required Kubernetes manifests
+            automatically.
+          </p>
+        </div>
+        <div class="card">
+          <span class="icon">&#128230;</span>
+          <h3>bootc (Image-Mode RHEL)</h3>
+          <p>
+            Deliver the OS as an OCI container image. Atomic updates, automatic rollbacks,
+            and a familiar container build workflow for infrastructure teams.
+          </p>
+        </div>
+        <div class="card">
+          <span class="icon">&#128260;</span>
+          <h3>GitOps with ArgoCD</h3>
+          <p>
+            Every VM is backed by a Git repository. Push a change, ArgoCD reconciles it.
+            Full audit trail, drift detection, and self-healing built in.
+          </p>
+        </div>
+        <div class="card">
+          <span class="icon">&#128274;</span>
+          <h3>Connectivity Link</h3>
+          <p>
+            Expose VMs through Gateway API with Kuadrant-powered authentication
+            (OIDC / API Key) and rate limiting. Publish APIs to a Dev Portal.
+          </p>
+        </div>
+        <div class="card">
+          <span class="icon">&#128221;</span>
+          <h3>Developer Hub Catalog</h3>
+          <p>
+            Each provisioned VM is automatically registered in the Backstage catalog
+            with TechDocs, ArgoCD status, and Kubernetes topology views.
+          </p>
+        </div>
+        <div class="card">
+          <span class="icon">&#128231;</span>
+          <h3>Notifications</h3>
+          <p>
+            After provisioning, a confirmation email is sent with VM details, namespace,
+            compute specs, and boot source information.
+          </p>
+        </div>
+      </div>
+
+      <h2>How it Works</h2>
+      <div class="diagram">
+<pre><code>Developer Hub          Gitea               ArgoCD            OpenShift Cluster
+     |                   |                   |                      |
+     |  1. Fill wizard   |                   |                      |
+     |------------------>|                   |                      |
+     |  2. Push manifests|                   |                      |
+     |                   |  3. Webhook       |                      |
+     |                   |------------------>|                      |
+     |                   |                   |  4. Sync manifests   |
+     |                   |                   |--------------------->|
+     |                   |                   |                      |
+     |                   |                   |         VirtualMachine created
+     |                   |                   |         Service created
+     |                   |                   |         Gateway + Policies (optional)
+     |                   |                   |                      |
+     |  5. Catalog entry registered          |                      |
+     |<--------------------------------------|                      |
+</code></pre>
+      </div>
+
+      <ol class="steps">
+        <li>
+          <strong>Self-Service Wizard</strong> &mdash; A developer fills out the template
+          form in Red Hat Developer Hub, configuring VM name, compute, storage, networking,
+          and optional Connectivity Link settings.
+        </li>
+        <li>
+          <strong>Repository Created</strong> &mdash; The template generates Kubernetes
+          manifests and pushes them to a new Gitea repository.
+        </li>
+        <li>
+          <strong>ArgoCD Syncs</strong> &mdash; An ArgoCD Application is created pointing
+          to the new repo. It syncs the manifests to the target namespace with auto-prune
+          and self-heal enabled.
+        </li>
+        <li>
+          <strong>VM Running</strong> &mdash; OpenShift Virtualization creates the
+          VirtualMachine, provisions storage via DataVolume, injects cloud-init config,
+          and (optionally) sets up Gateway API routing.
+        </li>
+        <li>
+          <strong>Day-2 Operations</strong> &mdash; Any change pushed to the Git repo is
+          automatically reconciled. Update CPU, memory, boot image, or policies simply
+          by editing YAML and pushing.
+        </li>
+      </ol>
+
+      <h2>Quick Links</h2>
+      <div class="card-grid">
+        <a href="requirements.html" class="card" style="text-decoration:none">
+          <h3>Requirements</h3>
+          <p>Red Hat products, operators, and versions needed to deploy this golden path.</p>
+        </a>
+        <a href="parameters.html" class="card" style="text-decoration:none">
+          <h3>Parameter Reference</h3>
+          <p>Complete reference for all 30+ configurable parameters across 5 wizard pages.</p>
+        </a>
+        <a href="bootc.html" class="card" style="text-decoration:none">
+          <h3>bootc Deep Dive</h3>
+          <p>Learn how image-mode RHEL works and how to build custom bootc images.</p>
+        </a>
+      </div>
+    </main>
+  </div>
+
+  <footer class="site-footer">
+    Golden Path RHEL VM bootc &mdash; Built with Red Hat Developer Hub &amp; OpenShift Virtualization
+    &bull; <a href="https://github.com/maximilianoPizarro/golden-path-rhel-bootc" target="_blank">Source on GitHub</a>
+  </footer>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/yaml.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/bash.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/dockerfile.min.js"></script>
+  <script src="js/main.js"></script>
+  <script>hljs.highlightAll();</script>
+</body>
+</html>

@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Requirements &mdash; RHEL VM bootc Golden Path</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+</head>
+<body>
+  <header class="site-header">
+    <button class="hamburger" aria-label="Menu">&#9776;</button>
+    <a href="index.html" class="logo">
+      <span class="hat">&#9654;</span>
+      RHEL VM bootc &mdash; Golden Path
+    </a>
+    <div class="header-links">
+      <a href="https://github.com/maximilianoPizarro/golden-path-rhel-bootc" target="_blank">GitHub</a>
+    </div>
+  </header>
+  <div class="sidebar-overlay"></div>
+  <div class="layout">
+    <aside class="sidebar">
+      <nav>
+        <span class="nav-section">General</span>
+        <a href="index.html">Overview</a>
+        <a href="architecture.html">Architecture</a>
+        <a href="requirements.html">Requirements</a>
+        <span class="nav-section">User Guide</span>
+        <a href="usage.html">How to Use</a>
+        <a href="parameters.html">Parameters</a>
+        <span class="nav-section">Deep Dives</span>
+        <a href="bootc.html">bootc / Image-Mode RHEL</a>
+        <a href="connectivity-link.html">Connectivity Link</a>
+        <a href="manifests.html">Manifest Reference</a>
+      </nav>
+    </aside>
+
+    <main class="main">
+      <h1>Red Hat Product Requirements</h1>
+      <p class="subtitle">
+        Products, operators, and infrastructure needed to deploy and use this golden path template.
+      </p>
+
+      <div class="callout">
+        <strong>Licensing:</strong> Most components require an active Red Hat subscription.
+        The optional Connectivity Link components require additional entitlements for
+        Kuadrant / Red Hat Connectivity Link.
+      </div>
+
+      <h2>Core Requirements</h2>
+      <p>These products must be installed and configured for the golden path to function.</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Product</th>
+              <th>Min. Version</th>
+              <th>Role</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Red Hat OpenShift Container Platform</strong></td>
+              <td>4.14+</td>
+              <td>
+                The Kubernetes cluster runtime. Provides the foundation for all workloads
+                including VMs, operators, and GitOps tooling.
+              </td>
+              <td><span class="badge badge-required">Required</span></td>
+            </tr>
+            <tr>
+              <td><strong>Red Hat OpenShift Virtualization</strong></td>
+              <td>4.14+</td>
+              <td>
+                KubeVirt-based VM runtime. Provides the <code>VirtualMachine</code>,
+                <code>DataVolume</code>, and <code>VirtualMachineInstance</code> CRDs.
+                Installed via the <code>kubevirt-hyperconverged</code> operator from OperatorHub.
+              </td>
+              <td><span class="badge badge-required">Required</span></td>
+            </tr>
+            <tr>
+              <td><strong>Red Hat Developer Hub</strong></td>
+              <td>1.x</td>
+              <td>
+                Backstage-based self-service developer portal. Hosts the Software Template,
+                provides the wizard UI, and registers provisioned VMs in the catalog.
+                Requires the <code>scaffolder</code>, <code>catalog</code>, and
+                <code>techdocs</code> plugins.
+              </td>
+              <td><span class="badge badge-required">Required</span></td>
+            </tr>
+            <tr>
+              <td><strong>Red Hat OpenShift GitOps</strong></td>
+              <td>1.10+</td>
+              <td>
+                ArgoCD operator. Provides continuous delivery by watching Git repositories
+                and reconciling Kubernetes resources. Each VM gets its own ArgoCD
+                <code>Application</code> with auto-sync, prune, and self-heal enabled.
+              </td>
+              <td><span class="badge badge-required">Required</span></td>
+            </tr>
+            <tr>
+              <td><strong>Gitea</strong> (or compatible Git server)</td>
+              <td>1.21+</td>
+              <td>
+                Lightweight Git hosting server. The template uses the
+                <code>publish:gitea</code> Backstage action to create repositories. Can be
+                replaced by any Git server if the corresponding Backstage action is available.
+              </td>
+              <td><span class="badge badge-required">Required</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2>Optional Requirements</h2>
+      <p>
+        These components are only needed when specific features are enabled in the wizard
+        (e.g., Connectivity Link, OIDC authentication).
+      </p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Product</th>
+              <th>Min. Version</th>
+              <th>Role</th>
+              <th>When Needed</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Red Hat Connectivity Link / Kuadrant</strong></td>
+              <td>1.x</td>
+              <td>
+                Provides <code>AuthPolicy</code>, <code>RateLimitPolicy</code>,
+                <code>PlanPolicy</code>, and <code>APIProduct</code> CRDs. Powers the
+                Gateway API-based ingress with authentication and rate limiting.
+                Includes the Authorino authorization engine and Limitador rate limiter.
+              </td>
+              <td><span class="badge badge-optional">Connectivity Link enabled</span></td>
+            </tr>
+            <tr>
+              <td><strong>Red Hat OpenShift Service Mesh / Istio</strong></td>
+              <td>2.4+</td>
+              <td>
+                Service mesh providing the <code>istio</code> GatewayClass for
+                Gateway API. Creates the Istio ingress gateway pods that route traffic
+                to VM services.
+              </td>
+              <td><span class="badge badge-optional">Connectivity Link enabled</span></td>
+            </tr>
+            <tr>
+              <td><strong>Red Hat Build of Keycloak</strong></td>
+              <td>22+</td>
+              <td>
+                OpenID Connect identity provider. Used when the OIDC authentication model
+                is selected. Provides JWT token issuance and validation for the AuthPolicy.
+              </td>
+              <td><span class="badge badge-optional">Auth model = OIDC</span></td>
+            </tr>
+            <tr>
+              <td><strong>Gateway API CRDs</strong></td>
+              <td>v1</td>
+              <td>
+                Kubernetes Gateway API resources (<code>Gateway</code>,
+                <code>HTTPRoute</code>). Usually installed alongside Service Mesh or
+                Connectivity Link.
+              </td>
+              <td><span class="badge badge-optional">Connectivity Link enabled</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2>Cluster Configuration</h2>
+
+      <h3>Operator Installation</h3>
+      <p>Install the following operators from OperatorHub in the OpenShift console:</p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Operator</th>
+              <th>Namespace</th>
+              <th>Channel</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>OpenShift Virtualization (<code>kubevirt-hyperconverged</code>)</td>
+              <td><code>openshift-cnv</code></td>
+              <td>stable</td>
+            </tr>
+            <tr>
+              <td>Red Hat OpenShift GitOps</td>
+              <td><code>openshift-gitops-operator</code></td>
+              <td>latest</td>
+            </tr>
+            <tr>
+              <td>Red Hat Developer Hub</td>
+              <td><code>rhdh-operator</code></td>
+              <td>fast</td>
+            </tr>
+            <tr>
+              <td>Red Hat OpenShift Service Mesh (Istio)</td>
+              <td><code>openshift-operators</code></td>
+              <td>stable</td>
+            </tr>
+            <tr>
+              <td>Kuadrant (Connectivity Link)</td>
+              <td><code>kuadrant-system</code></td>
+              <td>stable</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Required ConfigMap</h3>
+      <p>
+        The template expects a ConfigMap named <code>workshop-config</code> in the
+        <code>developer-hub</code> namespace containing the cluster domain:
+      </p>
+      <pre><code class="language-yaml">apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: workshop-config
+  namespace: developer-hub
+data:
+  clusterDomain: apps.cluster.example.com</code></pre>
+
+      <h3>ArgoCD Permissions</h3>
+      <p>
+        The ArgoCD instance in <code>openshift-gitops</code> must have permissions to
+        create resources in the target VM namespaces. The template uses
+        <code>ServerSideApply=true</code> and <code>CreateNamespace=true</code> sync
+        options, so ArgoCD needs cluster-scoped permissions or explicit namespace grants.
+      </p>
+
+      <h3>Developer Hub Proxy Configuration</h3>
+      <p>
+        The template uses <code>http:backstage:request</code> actions that rely on the
+        following proxy endpoints being configured in Developer Hub:
+      </p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Proxy Path</th>
+              <th>Target</th>
+              <th>Purpose</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>/proxy/k8s-api</code></td>
+              <td>Kubernetes API server</td>
+              <td>Read ConfigMaps, create ArgoCD Applications</td>
+            </tr>
+            <tr>
+              <td><code>/proxy/mailpit</code></td>
+              <td>Mailpit API</td>
+              <td>Send provisioning notification emails</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2>Subscription Matrix</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Red Hat Subscription</th>
+              <th>Covers</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>OpenShift Container Platform</td>
+              <td>OCP, OpenShift Virtualization, OpenShift GitOps, Service Mesh</td>
+            </tr>
+            <tr>
+              <td>Red Hat Developer Hub</td>
+              <td>Developer Hub operator and plugins</td>
+            </tr>
+            <tr>
+              <td>Red Hat Connectivity Link</td>
+              <td>Kuadrant, Authorino, Limitador, Dev Portal</td>
+            </tr>
+            <tr>
+              <td>Red Hat Build of Keycloak</td>
+              <td>Keycloak SSO (only if OIDC is used)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+  <footer class="site-footer">
+    Golden Path RHEL VM bootc &mdash; Built with Red Hat Developer Hub &amp; OpenShift Virtualization
+    &bull; <a href="https://github.com/maximilianoPizarro/golden-path-rhel-bootc" target="_blank">Source on GitHub</a>
+  </footer>
+  <script src="js/main.js"></script>
+</body>
+</html>

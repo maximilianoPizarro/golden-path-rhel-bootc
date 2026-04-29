@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>How to Use &mdash; RHEL VM bootc Golden Path</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+</head>
+<body>
+  <header class="site-header">
+    <button class="hamburger" aria-label="Menu">&#9776;</button>
+    <a href="index.html" class="logo">
+      <span class="hat">&#9654;</span>
+      RHEL VM bootc &mdash; Golden Path
+    </a>
+    <div class="header-links">
+      <a href="https://github.com/maximilianoPizarro/golden-path-rhel-bootc" target="_blank">GitHub</a>
+    </div>
+  </header>
+  <div class="sidebar-overlay"></div>
+  <div class="layout">
+    <aside class="sidebar">
+      <nav>
+        <span class="nav-section">General</span>
+        <a href="index.html">Overview</a>
+        <a href="architecture.html">Architecture</a>
+        <a href="requirements.html">Requirements</a>
+        <span class="nav-section">User Guide</span>
+        <a href="usage.html">How to Use</a>
+        <a href="parameters.html">Parameters</a>
+        <span class="nav-section">Deep Dives</span>
+        <a href="bootc.html">bootc / Image-Mode RHEL</a>
+        <a href="connectivity-link.html">Connectivity Link</a>
+        <a href="manifests.html">Manifest Reference</a>
+      </nav>
+    </aside>
+
+    <main class="main">
+      <h1>How to Use</h1>
+      <p class="subtitle">
+        Step-by-step guide to provisioning a RHEL virtual machine through
+        the Developer Hub wizard and managing it with GitOps.
+      </p>
+
+      <h2>Prerequisites</h2>
+      <ul>
+        <li>Access to a Red Hat Developer Hub instance with the template registered</li>
+        <li>An SSH public key for VM access</li>
+        <li>A workshop username (e.g., <code>user1</code>)</li>
+        <li>All <a href="requirements.html">platform requirements</a> satisfied</li>
+      </ul>
+
+      <h2>Provisioning a VM</h2>
+
+      <ol class="steps">
+        <li>
+          <strong>Open Developer Hub</strong><br>
+          Navigate to your Developer Hub instance and click <strong>Create</strong> in the
+          left sidebar. Find the template titled
+          <em>"RHEL Virtual Machine (bootc / OpenShift Virtualization)"</em>
+          and click <strong>Choose</strong>.
+        </li>
+
+        <li>
+          <strong>Page 1: VM Identity</strong><br>
+          Enter a DNS-compatible <strong>VM Name</strong> (e.g., <code>my-webserver</code>).
+          Set your <strong>Owner</strong> username. Optionally override the
+          <strong>Target Namespace</strong> (defaults to <code>&lt;owner&gt;-vms</code>).
+        </li>
+
+        <li>
+          <strong>Page 2: Compute Resources</strong><br>
+          Select <strong>CPU Cores</strong> (1-16), <strong>Sockets</strong> (1-2),
+          <strong>Threads</strong> (1-2), and <strong>Memory</strong> (2-32 GiB).
+          Choose a <strong>Run Strategy</strong>:
+          <ul>
+            <li><code>Always</code> &mdash; auto-start and restart on failure</li>
+            <li><code>RerunOnFailure</code> &mdash; restart only on crash</li>
+            <li><code>Manual</code> &mdash; start/stop manually via <code>virtctl</code></li>
+            <li><code>Halted</code> &mdash; create the VM but do not start it</li>
+          </ul>
+        </li>
+
+        <li>
+          <strong>Page 3: Storage &amp; Boot Source</strong><br>
+          Set the <strong>Root Disk Size</strong> (20-200 GiB) and optionally a
+          <strong>Storage Class</strong>. Choose the <strong>Boot Source</strong>:
+          <ul>
+            <li><strong>Container Registry</strong> &mdash; uses a RHEL guest image
+              (default: <code>registry.redhat.io/rhel9/rhel-guest-image:latest</code>)</li>
+            <li><strong>bootc Image</strong> &mdash; uses an image-mode RHEL OCI image
+              (default: <code>quay.io/centos-bootc/centos-bootc:stream9</code>)</li>
+          </ul>
+        </li>
+
+        <li>
+          <strong>Page 4: Network &amp; Access</strong><br>
+          Set a <strong>VM Password</strong> for console access. Paste your
+          <strong>SSH Public Key</strong>. Optionally enable <strong>Apache HTTP Server</strong>
+          installation and specify <strong>Extra Packages</strong>.
+          Toggle <strong>Expose via Connectivity Link</strong> if you want external
+          Gateway API routing.
+        </li>
+
+        <li>
+          <strong>Page 5: Connectivity Link Configuration</strong><br>
+          (Only applies when Connectivity Link is enabled)<br>
+          Set the <strong>Route Path Prefix</strong>, choose an
+          <strong>Authentication Model</strong> (None / OIDC / API Key), and configure
+          the <strong>Rate Limit</strong> (requests per minute).
+          For OIDC, provide the Keycloak <strong>Realm</strong> and <strong>Client ID</strong>.
+        </li>
+      </ol>
+
+      <h2>What Happens After Submit</h2>
+      <p>When you click <strong>Create</strong>, the template executes these steps automatically:</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Step</th>
+              <th>Action</th>
+              <th>Result</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>1</td>
+              <td>Resolve Cluster Domain</td>
+              <td>Reads <code>workshop-config</code> ConfigMap to get the cluster domain</td>
+            </tr>
+            <tr>
+              <td>2</td>
+              <td>Generate VM Manifests</td>
+              <td>Renders the skeleton templates with your parameter values</td>
+            </tr>
+            <tr>
+              <td>3</td>
+              <td>Push to Gitea</td>
+              <td>Creates a new public repo <code>ws-&lt;owner&gt;/&lt;vmName&gt;-vm</code></td>
+            </tr>
+            <tr>
+              <td>4</td>
+              <td>Register in Catalog</td>
+              <td>Imports <code>catalog-info.yaml</code> into Backstage catalog</td>
+            </tr>
+            <tr>
+              <td>5</td>
+              <td>Create ArgoCD Application</td>
+              <td>Posts an Application CR to the <code>openshift-gitops</code> namespace</td>
+            </tr>
+            <tr>
+              <td>6</td>
+              <td>Send Notification</td>
+              <td>Sends an HTML email via Mailpit with VM details</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2>Accessing Your VM</h2>
+
+      <h3>SSH via virtctl</h3>
+      <pre><code class="language-bash">virtctl ssh cloud-user@my-webserver -n user1-vms</code></pre>
+
+      <h3>SSH via port-forward</h3>
+      <pre><code class="language-bash">oc port-forward svc/my-webserver 2222:22 -n user1-vms
+ssh -p 2222 cloud-user@localhost</code></pre>
+
+      <h3>VNC Console</h3>
+      <pre><code class="language-bash">virtctl console my-webserver -n user1-vms</code></pre>
+
+      <h3>HTTP Access (Connectivity Link)</h3>
+      <p>If Connectivity Link was enabled, access the VM service via its OpenShift Route:</p>
+      <pre><code class="language-bash">curl https://my-webserver-route-user1-vms.apps.cluster.example.com/</code></pre>
+
+      <h2>Day-2 Operations</h2>
+
+      <h3>Modifying VM Configuration</h3>
+      <p>
+        Since the VM is managed via GitOps, all changes go through Git:
+      </p>
+      <ol>
+        <li>Clone the Gitea repo: <code>git clone https://gitea-gitea.apps.cluster.example.com/ws-user1/my-webserver-vm</code></li>
+        <li>Edit the desired manifest under <code>manifests/</code></li>
+        <li>Commit and push to the <code>main</code> branch</li>
+        <li>ArgoCD detects the change and syncs automatically</li>
+      </ol>
+
+      <h3>Scaling Resources</h3>
+      <p>
+        Edit <code>manifests/virtualmachine.yaml</code> to change CPU cores, memory,
+        or disk size. The VM may need to be restarted for changes to take effect:
+      </p>
+      <pre><code class="language-bash">virtctl restart my-webserver -n user1-vms</code></pre>
+
+      <h3>Updating the Boot Image</h3>
+      <p>
+        For bootc VMs, update the <code>bootcImageUrl</code> in
+        <code>manifests/virtualmachine.yaml</code> to point to a new image tag.
+        See the <a href="bootc.html">bootc deep dive</a> for details on building
+        custom images.
+      </p>
+
+      <h3>Stopping / Starting</h3>
+      <pre><code class="language-bash"># Stop
+virtctl stop my-webserver -n user1-vms
+
+# Start
+virtctl start my-webserver -n user1-vms
+
+# Restart
+virtctl restart my-webserver -n user1-vms</code></pre>
+
+      <h3>Deleting a VM</h3>
+      <p>
+        To decommission a VM, delete the ArgoCD Application. ArgoCD will clean up
+        all resources in the namespace thanks to the
+        <code>resources-finalizer.argocd.argoproj.io</code> finalizer:
+      </p>
+      <pre><code class="language-bash">oc delete application user1-my-webserver-vm -n openshift-gitops</code></pre>
+    </main>
+  </div>
+  <footer class="site-footer">
+    Golden Path RHEL VM bootc &mdash; Built with Red Hat Developer Hub &amp; OpenShift Virtualization
+    &bull; <a href="https://github.com/maximilianoPizarro/golden-path-rhel-bootc" target="_blank">Source on GitHub</a>
+  </footer>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/yaml.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/bash.min.js"></script>
+  <script src="js/main.js"></script>
+  <script>hljs.highlightAll();</script>
+</body>
+</html>

@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Parameters &mdash; RHEL VM bootc Golden Path</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="site-header">
+    <button class="hamburger" aria-label="Menu">&#9776;</button>
+    <a href="index.html" class="logo">
+      <span class="hat">&#9654;</span>
+      RHEL VM bootc &mdash; Golden Path
+    </a>
+    <div class="header-links">
+      <a href="https://github.com/maximilianoPizarro/golden-path-rhel-bootc" target="_blank">GitHub</a>
+    </div>
+  </header>
+  <div class="sidebar-overlay"></div>
+  <div class="layout">
+    <aside class="sidebar">
+      <nav>
+        <span class="nav-section">General</span>
+        <a href="index.html">Overview</a>
+        <a href="architecture.html">Architecture</a>
+        <a href="requirements.html">Requirements</a>
+        <span class="nav-section">User Guide</span>
+        <a href="usage.html">How to Use</a>
+        <a href="parameters.html">Parameters</a>
+        <span class="nav-section">Deep Dives</span>
+        <a href="bootc.html">bootc / Image-Mode RHEL</a>
+        <a href="connectivity-link.html">Connectivity Link</a>
+        <a href="manifests.html">Manifest Reference</a>
+      </nav>
+    </aside>
+
+    <main class="main">
+      <h1>Parameter Reference</h1>
+      <p class="subtitle">
+        Complete reference for all configurable parameters across the 5 wizard pages
+        in the Backstage Software Template.
+      </p>
+
+      <h2>Page 1: VM Identity</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Parameter</th>
+              <th>Type</th>
+              <th>Required</th>
+              <th>Default</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>vmName</code></td>
+              <td>string</td>
+              <td><span class="badge badge-required">Yes</span></td>
+              <td>&mdash;</td>
+              <td>
+                DNS-compatible name for the virtual machine.
+                Pattern: <code>^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$</code>
+              </td>
+            </tr>
+            <tr>
+              <td><code>description</code></td>
+              <td>string</td>
+              <td>No</td>
+              <td><code>RHEL virtual machine managed via GitOps and bootc</code></td>
+              <td>Human-readable description for the VM.</td>
+            </tr>
+            <tr>
+              <td><code>owner</code></td>
+              <td>string</td>
+              <td><span class="badge badge-required">Yes</span></td>
+              <td>Current user entity name</td>
+              <td>
+                Workshop username (e.g., <code>user1</code>).
+                Pattern: <code>^user[0-9]+$</code>
+              </td>
+            </tr>
+            <tr>
+              <td><code>namespace</code></td>
+              <td>string</td>
+              <td>No</td>
+              <td><code>&lt;owner&gt;-vms</code></td>
+              <td>
+                Kubernetes namespace for the VM resources.
+                Leave empty to use the auto-generated default.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2>Page 2: Compute Resources</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Parameter</th>
+              <th>Type</th>
+              <th>Default</th>
+              <th>Allowed Values</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>cpuCores</code></td>
+              <td>integer</td>
+              <td>2</td>
+              <td>1, 2, 4, 8, 16</td>
+              <td>Number of CPU cores per socket.</td>
+            </tr>
+            <tr>
+              <td><code>cpuSockets</code></td>
+              <td>integer</td>
+              <td>1</td>
+              <td>1, 2</td>
+              <td>Number of CPU sockets.</td>
+            </tr>
+            <tr>
+              <td><code>cpuThreads</code></td>
+              <td>integer</td>
+              <td>1</td>
+              <td>1, 2</td>
+              <td>Threads per CPU core (hyper-threading).</td>
+            </tr>
+            <tr>
+              <td><code>memory</code></td>
+              <td>string</td>
+              <td><code>4Gi</code></td>
+              <td>2Gi, 4Gi, 8Gi, 16Gi, 32Gi</td>
+              <td>Guest memory allocation.</td>
+            </tr>
+            <tr>
+              <td><code>runStrategy</code></td>
+              <td>string</td>
+              <td><code>Always</code></td>
+              <td>Always, RerunOnFailure, Manual, Halted</td>
+              <td>
+                VM lifecycle strategy. <code>Always</code> auto-starts and restarts;
+                <code>Halted</code> creates but does not start.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2>Page 3: Storage &amp; Boot Source</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Parameter</th>
+              <th>Type</th>
+              <th>Required</th>
+              <th>Default</th>
+              <th>Allowed Values</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>rootDiskSize</code></td>
+              <td>string</td>
+              <td>No</td>
+              <td><code>30Gi</code></td>
+              <td>20Gi, 30Gi, 50Gi, 100Gi, 200Gi</td>
+              <td>Size of the root disk PVC.</td>
+            </tr>
+            <tr>
+              <td><code>storageClass</code></td>
+              <td>string</td>
+              <td>No</td>
+              <td>(cluster default)</td>
+              <td>Any valid StorageClass</td>
+              <td>Kubernetes StorageClass name. Leave empty for cluster default.</td>
+            </tr>
+            <tr>
+              <td><code>bootSource</code></td>
+              <td>string</td>
+              <td><span class="badge badge-required">Yes</span></td>
+              <td><code>registry</code></td>
+              <td>registry, bootc-image</td>
+              <td>
+                How the VM root disk is provisioned.
+                <code>registry</code> uses a traditional RHEL guest image;
+                <code>bootc-image</code> uses image-mode RHEL.
+              </td>
+            </tr>
+            <tr>
+              <td><code>registryUrl</code></td>
+              <td>string</td>
+              <td>Conditional</td>
+              <td><code>registry.redhat.io/rhel9/rhel-guest-image:latest</code></td>
+              <td>Any OCI image URL</td>
+              <td>
+                OCI image containing the guest disk (qcow2 or raw).
+                Only shown when <code>bootSource=registry</code>.
+              </td>
+            </tr>
+            <tr>
+              <td><code>bootcImageUrl</code></td>
+              <td>string</td>
+              <td>Conditional</td>
+              <td><code>quay.io/centos-bootc/centos-bootc:stream9</code></td>
+              <td>Any bootc OCI image URL</td>
+              <td>
+                OCI bootc image for image-mode RHEL.
+                Only shown when <code>bootSource=bootc-image</code>.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2>Page 4: Network &amp; Access</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Parameter</th>
+              <th>Type</th>
+              <th>Required</th>
+              <th>Default</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>vmPassword</code></td>
+              <td>string</td>
+              <td><span class="badge badge-required">Yes</span></td>
+              <td><code>redhat123</code></td>
+              <td>Password for the <code>cloud-user</code> account (console/VNC login).</td>
+            </tr>
+            <tr>
+              <td><code>sshPublicKey</code></td>
+              <td>string</td>
+              <td><span class="badge badge-required">Yes</span></td>
+              <td>&mdash;</td>
+              <td>SSH public key injected via cloud-init for the <code>cloud-user</code> account.</td>
+            </tr>
+            <tr>
+              <td><code>installHttpd</code></td>
+              <td>boolean</td>
+              <td>No</td>
+              <td><code>true</code></td>
+              <td>Install and enable Apache HTTP Server with a default landing page on port 8080.</td>
+            </tr>
+            <tr>
+              <td><code>extraPackages</code></td>
+              <td>string</td>
+              <td>No</td>
+              <td>(empty)</td>
+              <td>Space-separated list of additional packages to install via cloud-init (e.g., <code>vim-enhanced git podman</code>).</td>
+            </tr>
+            <tr>
+              <td><code>hostname</code></td>
+              <td>string</td>
+              <td>No</td>
+              <td>(same as VM name)</td>
+              <td>Guest hostname.</td>
+            </tr>
+            <tr>
+              <td><code>cloudInitExtra</code></td>
+              <td>string</td>
+              <td>No</td>
+              <td>(empty)</td>
+              <td>Additional cloud-init user-data in YAML format, appended to the generated config.</td>
+            </tr>
+            <tr>
+              <td><code>enableConnectivityLink</code></td>
+              <td>boolean</td>
+              <td>No</td>
+              <td><code>false</code></td>
+              <td>Create Gateway, HTTPRoute, and policies to expose the VM service through the Istio mesh.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2>Page 5: Connectivity Link Configuration</h2>
+      <div class="callout">
+        These parameters only apply when <code>enableConnectivityLink</code> is set to <code>true</code>
+        on the previous page.
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Parameter</th>
+              <th>Type</th>
+              <th>Default</th>
+              <th>Allowed Values</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>routePath</code></td>
+              <td>string</td>
+              <td><code>/</code></td>
+              <td>Any path prefix</td>
+              <td>HTTP path prefix to match on the HTTPRoute.</td>
+            </tr>
+            <tr>
+              <td><code>authModel</code></td>
+              <td>string</td>
+              <td><code>none</code></td>
+              <td>none, oidc, apikey</td>
+              <td>
+                How clients authenticate to the exposed service.
+                <code>none</code> = open; <code>oidc</code> = Keycloak JWT;
+                <code>apikey</code> = X-API-Key header/cookie.
+              </td>
+            </tr>
+            <tr>
+              <td><code>rateLimitPerMinute</code></td>
+              <td>integer</td>
+              <td>120</td>
+              <td>0 = unlimited</td>
+              <td>Maximum requests per minute. Applied via RateLimitPolicy (non-apikey) or PlanPolicy (apikey).</td>
+            </tr>
+            <tr>
+              <td><code>keycloakRealm</code></td>
+              <td>string</td>
+              <td><code>neuralbank</code></td>
+              <td>Any realm name</td>
+              <td>Keycloak realm for JWT validation. Only shown when <code>authModel=oidc</code>.</td>
+            </tr>
+            <tr>
+              <td><code>keycloakClientId</code></td>
+              <td>string</td>
+              <td><code>vm-client</code></td>
+              <td>Any client ID</td>
+              <td>OIDC client ID. Only shown when <code>authModel=oidc</code>.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2>Computed Values</h2>
+      <p>These values are derived automatically during template execution:</p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Value</th>
+              <th>Formula</th>
+              <th>Example</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>uniqueName</code></td>
+              <td><code>&lt;owner&gt;-&lt;vmName&gt;</code></td>
+              <td><code>user1-my-webserver</code></td>
+            </tr>
+            <tr>
+              <td><code>namespace</code> (if empty)</td>
+              <td><code>&lt;owner&gt;-vms</code></td>
+              <td><code>user1-vms</code></td>
+            </tr>
+            <tr>
+              <td><code>clusterDomain</code></td>
+              <td>Read from <code>workshop-config</code> ConfigMap</td>
+              <td><code>apps.cluster.example.com</code></td>
+            </tr>
+            <tr>
+              <td>Gitea repo URL</td>
+              <td><code>gitea-gitea.&lt;clusterDomain&gt;/ws-&lt;owner&gt;/&lt;vmName&gt;-vm</code></td>
+              <td><code>gitea-gitea.apps.../ws-user1/my-webserver-vm</code></td>
+            </tr>
+            <tr>
+              <td>ArgoCD app name</td>
+              <td><code>&lt;owner&gt;-&lt;vmName&gt;-vm</code></td>
+              <td><code>user1-my-webserver-vm</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+  <footer class="site-footer">
+    Golden Path RHEL VM bootc &mdash; Built with Red Hat Developer Hub &amp; OpenShift Virtualization
+    &bull; <a href="https://github.com/maximilianoPizarro/golden-path-rhel-bootc" target="_blank">Source on GitHub</a>
+  </footer>
+  <script src="js/main.js"></script>
+</body>
+</html>

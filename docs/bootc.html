@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>bootc / Image-Mode RHEL &mdash; RHEL VM bootc Golden Path</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+</head>
+<body>
+  <header class="site-header">
+    <button class="hamburger" aria-label="Menu">&#9776;</button>
+    <a href="index.html" class="logo">
+      <span class="hat">&#9654;</span>
+      RHEL VM bootc &mdash; Golden Path
+    </a>
+    <div class="header-links">
+      <a href="https://github.com/maximilianoPizarro/golden-path-rhel-bootc" target="_blank">GitHub</a>
+    </div>
+  </header>
+  <div class="sidebar-overlay"></div>
+  <div class="layout">
+    <aside class="sidebar">
+      <nav>
+        <span class="nav-section">General</span>
+        <a href="index.html">Overview</a>
+        <a href="architecture.html">Architecture</a>
+        <a href="requirements.html">Requirements</a>
+        <span class="nav-section">User Guide</span>
+        <a href="usage.html">How to Use</a>
+        <a href="parameters.html">Parameters</a>
+        <span class="nav-section">Deep Dives</span>
+        <a href="bootc.html">bootc / Image-Mode RHEL</a>
+        <a href="connectivity-link.html">Connectivity Link</a>
+        <a href="manifests.html">Manifest Reference</a>
+      </nav>
+    </aside>
+
+    <main class="main">
+      <h1>bootc / Image-Mode RHEL</h1>
+      <p class="subtitle">
+        Deliver the operating system as an immutable OCI container image with
+        atomic updates and automatic rollbacks.
+      </p>
+
+      <h2>What is bootc?</h2>
+      <p>
+        <strong>bootc</strong> is a tool for managing bootable container images. It
+        enables <strong>image-mode RHEL</strong>, where the entire operating system
+        &mdash; kernel, packages, configuration &mdash; is delivered as a standard OCI
+        container image. Instead of managing individual RPM packages on each machine,
+        you build a container image with your desired OS state and deploy it.
+      </p>
+
+      <div class="callout">
+        <strong>Key insight:</strong> With bootc, your VM's operating system is managed
+        the same way you manage container applications &mdash; build an image, push it to
+        a registry, and roll it out. This brings container-native workflows to traditional
+        VM-based workloads.
+      </div>
+
+      <h2>bootc vs. Traditional Package Management</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Aspect</th>
+              <th>Traditional (dnf/yum)</th>
+              <th>bootc (Image-Mode)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Update unit</strong></td>
+              <td>Individual RPM packages</td>
+              <td>Entire OS image (atomic)</td>
+            </tr>
+            <tr>
+              <td><strong>Rollback</strong></td>
+              <td>Manual, unreliable</td>
+              <td>Automatic, guaranteed (previous image retained)</td>
+            </tr>
+            <tr>
+              <td><strong>Drift</strong></td>
+              <td>Possible (manual changes accumulate)</td>
+              <td>Eliminated (OS state defined by image)</td>
+            </tr>
+            <tr>
+              <td><strong>Build process</strong></td>
+              <td>Kickstart / Ansible / manual</td>
+              <td>Containerfile (standard container build)</td>
+            </tr>
+            <tr>
+              <td><strong>Registry</strong></td>
+              <td>RPM repos (dnf/yum)</td>
+              <td>OCI container registry (Quay, GHCR, etc.)</td>
+            </tr>
+            <tr>
+              <td><strong>Testing</strong></td>
+              <td>Test on live system</td>
+              <td>Test image in CI before deploying</td>
+            </tr>
+            <tr>
+              <td><strong>Reproducibility</strong></td>
+              <td>Depends on repo state at install time</td>
+              <td>Fully reproducible (pinned image digest)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2>How bootc Updates Work in This Golden Path</h2>
+      <p>
+        When you select <strong>bootc Image</strong> as the boot source, the template
+        configures automatic OS updates inside the VM guest:
+      </p>
+
+      <ol class="steps">
+        <li>
+          <strong>Systemd Timer</strong> &mdash; A <code>bootc-update.timer</code> unit
+          is injected via cloud-init and runs daily (<code>OnCalendar=daily</code>,
+          <code>Persistent=true</code>).
+        </li>
+        <li>
+          <strong>Pull &amp; Stage</strong> &mdash; The timer triggers
+          <code>bootc update --apply</code>, which pulls the latest version of the
+          bootc image from the registry and stages it for the next boot.
+        </li>
+        <li>
+          <strong>Reboot &amp; Activate</strong> &mdash; On the next reboot (manual or
+          scheduled), the new OS image is activated. The previous image is retained as
+          a rollback target.
+        </li>
+        <li>
+          <strong>Automatic Rollback</strong> &mdash; If the new image fails to boot
+          successfully, bootc automatically rolls back to the previous known-good image.
+        </li>
+      </ol>
+
+      <h2>Building Custom bootc Images</h2>
+      <p>
+        You build bootc images using standard container tooling (Podman, Buildah, Docker).
+        Start from a base bootc image and layer your customizations:
+      </p>
+
+      <h3>Basic Containerfile</h3>
+      <pre><code class="language-dockerfile">FROM quay.io/centos-bootc/centos-bootc:stream9
+
+# Install packages
+RUN dnf install -y \
+    httpd \
+    vim-enhanced \
+    git \
+    && systemctl enable httpd \
+    && dnf clean all
+
+# Add custom configuration
+COPY my-httpd.conf /etc/httpd/conf.d/custom.conf
+
+# Add application content
+COPY html/ /var/www/html/</code></pre>
+
+      <h3>Build and Push</h3>
+      <pre><code class="language-bash"># Build the image
+podman build -t quay.io/myorg/my-rhel-bootc:v1.0 .
+
+# Push to registry
+podman push quay.io/myorg/my-rhel-bootc:v1.0</code></pre>
+
+      <h3>Multi-Stage Build with Testing</h3>
+      <pre><code class="language-dockerfile">FROM quay.io/centos-bootc/centos-bootc:stream9 AS base
+
+RUN dnf install -y httpd php php-mysqlnd && \
+    systemctl enable httpd && \
+    dnf clean all
+
+COPY app/ /var/www/html/
+COPY httpd-8080.conf /etc/httpd/conf.d/listen-8080.conf
+
+# Verify the image builds correctly
+RUN httpd -t</code></pre>
+
+      <h2>GitOps-Driven OS Lifecycle</h2>
+      <p>
+        The golden path integrates bootc with ArgoCD for a complete GitOps-driven
+        OS lifecycle:
+      </p>
+
+      <div class="diagram">
+<pre><code>  ┌─────────────────┐     ┌──────────────┐     ┌───────────────┐
+  │  Build bootc     │     │  Push image   │     │  Update YAML  │
+  │  image in CI     │────►│  to Quay.io   │────►│  in Git repo  │
+  │  (Containerfile) │     │              │     │  (image ref)  │
+  └─────────────────┘     └──────────────┘     └──────┬────────┘
+                                                       │
+                                                       ▼
+                                               ┌───────────────┐
+                                               │  ArgoCD syncs  │
+                                               │  DataVolume    │
+                                               │  (new image)   │
+                                               └──────┬────────┘
+                                                       │
+                                                       ▼
+                                               ┌───────────────┐
+                                               │  VM boots with │
+                                               │  new OS image  │
+                                               └───────────────┘</code></pre>
+      </div>
+
+      <h3>Updating the Image via Git</h3>
+      <p>
+        To update the OS image for a running VM:
+      </p>
+      <ol>
+        <li>Build and push the new bootc image with a new tag</li>
+        <li>Edit <code>manifests/virtualmachine.yaml</code> in the Gitea repository</li>
+        <li>Update the <code>bootcImageUrl</code> to the new image tag</li>
+        <li>Commit and push to <code>main</code></li>
+        <li>ArgoCD detects the change and reconciles the DataVolume</li>
+      </ol>
+
+      <pre><code class="language-yaml"># In manifests/virtualmachine.yaml, update the source:
+source:
+  registry:
+    url: "docker://quay.io/myorg/my-rhel-bootc:v1.1"  # Updated tag
+    pullMethod: node</code></pre>
+
+      <h2>In-Guest bootc Commands</h2>
+      <p>
+        Once connected to the VM via SSH, you can manage bootc directly:
+      </p>
+
+      <pre><code class="language-bash"># Check current boot status
+bootc status
+
+# Manually check for updates
+bootc update --check
+
+# Apply an update immediately
+bootc update --apply
+
+# Switch to a different image entirely
+bootc switch quay.io/myorg/my-rhel-bootc:v2.0
+
+# Rollback to the previous image
+bootc rollback</code></pre>
+
+      <h2>Base Images</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Image</th>
+              <th>Description</th>
+              <th>Use Case</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>quay.io/centos-bootc/centos-bootc:stream9</code></td>
+              <td>CentOS Stream 9 bootc base image</td>
+              <td>Development, testing, community use</td>
+            </tr>
+            <tr>
+              <td><code>registry.redhat.io/rhel9/rhel-bootc:latest</code></td>
+              <td>RHEL 9 bootc base image (subscription required)</td>
+              <td>Production workloads with Red Hat support</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+  <footer class="site-footer">
+    Golden Path RHEL VM bootc &mdash; Built with Red Hat Developer Hub &amp; OpenShift Virtualization
+    &bull; <a href="https://github.com/maximilianoPizarro/golden-path-rhel-bootc" target="_blank">Source on GitHub</a>
+  </footer>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/yaml.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/bash.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/dockerfile.min.js"></script>
+  <script src="js/main.js"></script>
+  <script>hljs.highlightAll();</script>
+</body>
+</html>
